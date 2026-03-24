@@ -23,6 +23,21 @@ const RADIUS_OPTIONS = [
 const MAX_SEARCH_COUNT = 5;
 const MAX_NOTE_LENGTH = 300;
 
+// 띄어쓰기 유무 모두 커버하는 검색 변형 생성
+// 예: "조원로 12길" → ["조원로 12길", "조원로12길"]
+//     "조원로12길"  → ["조원로12길",  "조원로 12길"]
+const getSearchVariants = (query) => {
+  const base = query.trim();
+  const variants = [base];
+  // 한글/영문자와 숫자 사이 공백 제거: "조원로 12길" → "조원로12길"
+  const noSpace = base.replace(/([가-힣a-zA-Z])\s+(\d)/g, '$1$2');
+  // 한글/영문자와 숫자 사이 공백 추가: "조원로12길" → "조원로 12길"
+  const withSpace = base.replace(/([가-힣a-zA-Z])(\d)/g, '$1 $2');
+  if (noSpace !== base) variants.push(noSpace);
+  if (withSpace !== base) variants.push(withSpace);
+  return [...new Set(variants)];
+};
+
 // 지도 중심 이동 컴포넌트 (검색/이동 시에만 flyTo 실행)
 function FlyTo({ position, shouldFly }) {
   const map = useMap();
@@ -80,6 +95,7 @@ export default function ZoneAddPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [zones, setZones] = useState([]);
 
   const handleAddressSearch = async () => {
     if (!addressInput.trim()) return;
@@ -92,16 +108,24 @@ export default function ZoneAddPage() {
     setSearchError('');
 
     try {
-      const query = encodeURIComponent(addressInput.trim());
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&accept-language=ko`,
-        { headers: { 'Accept-Language': 'ko' } }
-      );
-      const data = await res.json();
+      const variants = getSearchVariants(addressInput);
+      let found = null;
 
-      if (data && data.length > 0) {
-        const { lat, lon } = data[0];
-        const newPos = { lat: parseFloat(lat), lng: parseFloat(lon) };
+      // 변형 쿼리를 순서대로 시도, 첫 번째 결과 사용
+      for (const variant of variants) {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(variant)}&format=json&limit=1&accept-language=ko`,
+          { headers: { 'Accept-Language': 'ko' } }
+        );
+        const data = await res.json();
+        if (data && data.length > 0) {
+          found = data[0];
+          break;
+        }
+      }
+
+      if (found) {
+        const newPos = { lat: parseFloat(found.lat), lng: parseFloat(found.lon) };
         setMarkerPos(newPos);
         setShouldFly(true);
         setSearchCount((c) => c + 1);
@@ -164,7 +188,28 @@ export default function ZoneAddPage() {
       alert('구역 이름을 입력해주세요.');
       return;
     }
-    alert(`구역이 추가되었습니다!\n이름: ${zoneName}\n위도: ${markerPos.lat.toFixed(6)}\n경도: ${markerPos.lng.toFixed(6)}\n반경: ${radius}m`);
+    const newZone = {
+      id: Date.now(),
+      name: zoneName.trim(),
+      lat: markerPos.lat,
+      lng: markerPos.lng,
+      radius,
+      address: addressInput,
+    };
+    setZones((prev) => [...prev, newZone]);
+    setZoneName('');
+    setAddressInput('');
+    setNote('');
+    setRadius(100);
+    setSearchCount(0);
+    setSearchError('');
+  };
+
+  const handleZoneClick = (zone) => {
+    setMarkerPos({ lat: zone.lat, lng: zone.lng });
+    setRadius(zone.radius);
+    setAddressInput(zone.address);
+    setShouldFly(true);
   };
 
   return (
@@ -291,6 +336,25 @@ export default function ZoneAddPage() {
             />
             <span className="char-count">{note.length}/{MAX_NOTE_LENGTH}</span>
           </div>
+
+          {/* 추가된 구역 목록 */}
+          {zones.length > 0 && (
+            <div className="form-group">
+              <label className="form-label">추가된 구역</label>
+              <div className="zone-list">
+                {zones.map((zone) => (
+                  <button
+                    key={zone.id}
+                    className="btn-zone-ghost"
+                    onClick={() => handleZoneClick(zone)}
+                    title={zone.address || zone.name}
+                  >
+                    {zone.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 버튼 */}
           <div className="form-actions">
