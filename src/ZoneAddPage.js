@@ -78,6 +78,7 @@ export default function ZoneAddPage() {
   const [shouldFly, setShouldFly] = useState(false);
   const [searchCount, setSearchCount] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
+  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [searchError, setSearchError] = useState('');
 
   const handleAddressSearch = async () => {
@@ -118,14 +119,35 @@ export default function ZoneAddPage() {
     if (e.key === 'Enter') handleAddressSearch();
   };
 
+  const reverseGeocode = async (lat, lng) => {
+    setIsReverseGeocoding(true);
+    setSearchError('');
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ko`,
+        { headers: { 'Accept-Language': 'ko' } }
+      );
+      const data = await res.json();
+      if (data && data.display_name) {
+        setAddressInput(data.display_name);
+      }
+    } catch (e) {
+      setSearchError('주소 변환 중 오류가 발생했습니다.');
+    } finally {
+      setIsReverseGeocoding(false);
+    }
+  };
+
   const handleMapClick = (latlng) => {
     setMarkerPos(latlng);
     setShouldFly(false);
+    reverseGeocode(latlng.lat, latlng.lng);
   };
 
   const handleLocate = (latlng) => {
     setMarkerPos(latlng);
     setShouldFly(true);
+    reverseGeocode(latlng.lat, latlng.lng);
   };
 
   const handleCancel = () => {
@@ -215,19 +237,20 @@ export default function ZoneAddPage() {
                 <input
                   type="text"
                   className="form-input search-input"
-                  placeholder="장소명/ 주소 검색"
+                  placeholder={isReverseGeocoding ? '주소 불러오는 중...' : '장소명/ 주소 검색 또는 지도를 클릭하세요'}
                   value={addressInput}
                   onChange={(e) => setAddressInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  disabled={searchCount >= MAX_SEARCH_COUNT}
+                  disabled={searchCount >= MAX_SEARCH_COUNT || isReverseGeocoding}
+                  readOnly={isReverseGeocoding}
                 />
               </div>
               <button
                 className="btn-change"
                 onClick={handleAddressSearch}
-                disabled={isSearching || searchCount >= MAX_SEARCH_COUNT}
+                disabled={isSearching || isReverseGeocoding || searchCount >= MAX_SEARCH_COUNT}
               >
-                {isSearching ? '검색 중...' : '주소 변경'}
+                {isSearching ? '검색 중...' : isReverseGeocoding ? '주소 확인 중...' : '주소 변경'}
               </button>
               <span className="search-count">
                 <span className="search-icon-small">⊙</span>
