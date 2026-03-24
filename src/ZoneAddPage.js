@@ -20,7 +20,6 @@ const RADIUS_OPTIONS = [
   { label: '1km', value: 1000 },
 ];
 
-const MAX_SEARCH_COUNT = 5;
 const MAX_NOTE_LENGTH = 300;
 
 // 띄어쓰기 유무 모두 커버하는 검색 변형 생성
@@ -91,18 +90,14 @@ export default function ZoneAddPage() {
   const [radius, setRadius] = useState(100);
   const [markerPos, setMarkerPos] = useState({ lat: 37.5665, lng: 126.978 }); // 서울 기본
   const [shouldFly, setShouldFly] = useState(false);
-  const [searchCount, setSearchCount] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [zones, setZones] = useState([]);
 
+
   const handleAddressSearch = async () => {
     if (!addressInput.trim()) return;
-    if (searchCount >= MAX_SEARCH_COUNT) {
-      setSearchError('검색 횟수를 초과하였습니다. (최대 5회)');
-      return;
-    }
 
     setIsSearching(true);
     setSearchError('');
@@ -128,7 +123,6 @@ export default function ZoneAddPage() {
         const newPos = { lat: parseFloat(found.lat), lng: parseFloat(found.lon) };
         setMarkerPos(newPos);
         setShouldFly(true);
-        setSearchCount((c) => c + 1);
       } else {
         setSearchError('주소를 찾을 수 없습니다. 다시 입력해주세요.');
       }
@@ -179,7 +173,6 @@ export default function ZoneAddPage() {
     setAddressInput('');
     setNote('');
     setRadius(100);
-    setSearchCount(0);
     setSearchError('');
   };
 
@@ -201,7 +194,6 @@ export default function ZoneAddPage() {
     setAddressInput('');
     setNote('');
     setRadius(100);
-    setSearchCount(0);
     setSearchError('');
   };
 
@@ -286,21 +278,17 @@ export default function ZoneAddPage() {
                   value={addressInput}
                   onChange={(e) => setAddressInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  disabled={searchCount >= MAX_SEARCH_COUNT || isReverseGeocoding}
+                  disabled={isReverseGeocoding}
                   readOnly={isReverseGeocoding}
                 />
               </div>
               <button
                 className="btn-change"
                 onClick={handleAddressSearch}
-                disabled={isSearching || isReverseGeocoding || searchCount >= MAX_SEARCH_COUNT}
+                disabled={isSearching || isReverseGeocoding}
               >
                 {isSearching ? '검색 중...' : isReverseGeocoding ? '주소 확인 중...' : '주소 변경'}
               </button>
-              <span className="search-count">
-                <span className="search-icon-small">⊙</span>
-                검색 횟수 {searchCount}/{MAX_SEARCH_COUNT}
-              </span>
             </div>
             {searchError && <p className="error-text">{searchError}</p>}
           </div>
