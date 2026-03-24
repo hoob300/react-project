@@ -343,14 +343,22 @@ export default function ZoneAddPage() {
               <label className="form-label">추가된 구역</label>
               <div className="zone-list">
                 {zones.map((zone) => (
-                  <button
-                    key={zone.id}
-                    className="btn-zone-ghost"
-                    onClick={() => handleZoneClick(zone)}
-                    title={zone.address || zone.name}
-                  >
-                    {zone.name}
-                  </button>
+                  <div key={zone.id} className="zone-tag">
+                    <button
+                      className="btn-zone-ghost"
+                      onClick={() => handleZoneClick(zone)}
+                      title={zone.address || zone.name}
+                    >
+                      {zone.name}
+                    </button>
+                    <button
+                      className="btn-zone-delete"
+                      onClick={() => setZones((prev) => prev.filter((z) => z.id !== zone.id))}
+                      title="구역 삭제"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
